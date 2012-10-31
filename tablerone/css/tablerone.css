@@ -1,0 +1,4 @@
+.table-tablerone thead tr td span {
+	border-bottom: 1px dashed #666666;
+	font-weight: bold;
+}

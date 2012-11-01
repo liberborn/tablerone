@@ -1,13 +1,24 @@
+/* *************************************************
+ *
+ *  Tablerone - table interface
+ *	
+ *
+ * *************************************************
+ */
+
+
+
 var tablerone = {
 
 	pageParams : {
-		"sort" : "",
-		"page" : "1",
-		"filter" : "",
-		"type" : ""
+		sort : '',
+		page : '1',
+		filter : '',
+		type : ''
 	},
 
 	params : {
+		sortOrder : '',
 		firstPage  : 1,
 		lastPage   : 18,
 		pagePeriod : 4,
@@ -26,24 +37,27 @@ var tablerone = {
 			);        
 	},
 
-	setURLParameter : function(url, param, paramVal) {
-		var newAdditionalURL = "";
-		var tempArray = url.split("?");
-		var baseURL = tempArray[0];
-		var additionalURL = tempArray[1];
-		var temp = "";
-		if (additionalURL) {
-			tempArray = additionalURL.split("&");
-			for (i=0; i<tempArray.length; i++){
-				if(tempArray[i].split('=')[0] != param){
-					newAdditionalURL += temp + tempArray[i];
-					temp = "&";
+	setURLParameter : function(param, paramVal) {
+		var url = window.location.href,
+			newAddURL = "",
+			tempArr = url.split("?"),
+			baseURL = tempArr[0],
+			addURL = tempArr[1];
+
+		if (addURL) {
+			tempArr = addURL.split('&');
+
+			for (var i=0; i < tempArr.length; i++) {
+				if (tempArr[i].split('=')[0] != param) {
+					newAddURL += '&' + tempArr[i];
+				} else {
+					newAddURL += '&' + param + '=' + paramVal;
 				}
 			}
 		}
-
-		var rows_txt = temp + "" + param + "=" + paramVal;
-		return baseURL + "?" + newAdditionalURL + rows_txt;
+		
+		var newURL = (baseURL + "?" + newAddURL).replace('?&', '?');
+		window.history.pushState({}, "", newURL);
 	},
 
 	getPageParams : function() {
@@ -56,11 +70,38 @@ var tablerone = {
 		this.pageParams[key] = value;
 	},
 
+	render : function() {
+
+		var tplTable =	
+				'<table class="table table-hovered table-fixed-header table-tablerone">' +
+					'<thead class="header">' +
+						'{theadRows}' +
+					'</thead>' +
+					'<tbody>' +
+						'{tbodyRows}' +
+					'</tbody>' +
+				'</table>';
+
+		var theadData = this.renderThead(this.params.data.thead);
+		var tbodyData = this.renderTbody(this.params.data.tdata);
+
+		tplTable = tplTable.replace('{theadRows}', theadData);
+		tplTable = tplTable.replace('{tbodyRows}', tbodyData);
+
+		tplTable += this.renderPagination();
+
+		$("#" + this.params.id).html(tplTable);
+
+		$('.table-fixed-header').fixedHeader();
+
+		this.getPageParams();
+	},	
+
 	renderThead : function(rowsArr){
 		var rows = '<tr>';
 
 		for (var i = 0, m = rowsArr.length; i < m; i++) {
-			rows += '<td><span>' + rowsArr[i] + '</span></td>';
+			rows += '<td><span data-title="' + rowsArr[i].title + '">' + rowsArr[i].label + '</span></td>';
 		}
 		rows += '</tr>';
 
@@ -81,7 +122,6 @@ var tablerone = {
 		return rows;
 	},
 
-
 	renderPagination : function() {
 
 		var tpl = 
@@ -91,27 +131,54 @@ var tablerone = {
 				'</ul>' +
 			'</div>';
 
-		var pages = "";
+		var pages = "",
+			firstPage = this.params.firstPage,
+			currPage = this.params.currPage,
+			lastPage = this.params.lastPage,
+			pagePeriod = this.params.pagePeriod;
 
-		var cls = (this.params.firstPage == this.params.currPage) ? 'disabled' : '';
+		var cls = (firstPage == currPage) ? 'disabled' : '';
 		pages += '<li class="' + cls + '"><a href="#">&#8592; Ctrl</a></li>';
 
-		for (var i = this.params.firstPage, m = this.params.pagePeriod; i <= m; i++) {
-			cls = (i == this.params.currPage) ? 'active' : '';
+		for (var i = firstPage, m = pagePeriod; i <= m; i++) {
+			cls = (i == currPage) ? 'active' : '';
 			pages += '<li class="' + cls + '"><a href="#">' + i + '</a></li>';
 		}
 
 		pages += '<li class="disabled"><a href="#">...</a></li>';
 		
-		cls = (this.params.lastPage == this.params.currPage) ? 'active' : '';
-		pages += '<li class="' + cls + '"><a href="#">' + this.params.lastPage + '</a></li>';
+		cls = (lastPage == currPage) ? 'active' : '';
+		pages += '<li class="' + cls + '"><a href="#">' + lastPage + '</a></li>';
 
-		cls = (this.params.lastPage == this.params.currPage) ? 'disabled' : '';
+		cls = (lastPage == currPage) ? 'disabled' : '';
 		pages += '<li class="' + cls + '"><a href="#">Ctrl &#8594;</a></li>';
 
 		tpl = tpl.replace('{pages}', pages);
 
 		return tpl;
+	},
+
+	toggleSortOrder : function(p) {
+		var order = this.params.sortOrder;
+
+		if (order === 'asc') {
+			order = 'desc';
+		} else {
+			order = 'asc';
+		}
+
+		this.params.sortOrder = order;
+		this.setURLParameter('name', p + '=' + order);
+	},
+
+	theadOrder : function(e, me) {
+
+		var title = $(e).attr('data-title');
+		me.toggleSortOrder(title);
+
+		$("#" + me.params.id + ' thead span').removeClass("order-asc").removeClass("order-desc");
+		var cls = (me.params.sortOrder == 'asc') ? 'order-asc' : 'order-desc';
+		$(e).addClass(cls);
 	},
 
 	pageGo : function(p, me) {
@@ -121,18 +188,26 @@ var tablerone = {
 
 		var pages = me.renderPagination();
 		$('#' + me.params.id +  ' .pagination').replaceWith(pages);
+		me.onPageClick();
 
-		var newURL = me.setURLParameter(window.location.href, 'page', p);
-		window.location.href = newURL;
+		me.setURLParameter('page', p);
+	},
 
-		return;
+	onTheadClick : function() {
+		var me = this;
+
+		$("#" + me.params.id + ' thead span').on('click', onClick);
+
+		function onClick(e) {
+			me.theadOrder(this, me);
+		}
 	},
 
 	onPageClick : function() {
 		var me = this;
 
-		$('#' + me.params.id +  ' .pagination li:not(.disabled) a').live("click", onClick);
-		$('#' + me.params.id +  ' .pagination li.disabled a').live("click", function(){ return false; });
+		$('#' + me.params.id +  ' .pagination li:not(.disabled) a').on('click', onClick);
+		$('#' + me.params.id +  ' .pagination li.disabled a').on('click', function(){ return false; });
 
 		function onClick(e) {
 			var p = this.innerHTML;
@@ -148,42 +223,16 @@ var tablerone = {
 	},
 
 	events : function() {
+		this.onTheadClick();
 		this.onPageClick();
 	},
 
-	render : function(id, data){
-
-		var tplTable =	
-				'<table class="table table-hovered table-fixed-header table-tablerone">' +
-					'<thead class="header">' +
-						'{theadRows}' +
-					'</thead>' +
-					'<tbody>' +
-						'{tbodyRows}' +
-					'</tbody>' +
-				'</table>';
-
-		var theadData = this.renderThead(data.thead);
-		var tbodyData = this.renderTbody(data.tdata);
-
-		tplTable = tplTable.replace('{theadRows}', theadData);
-		tplTable = tplTable.replace('{tbodyRows}', tbodyData);
-
-		tplTable += this.renderPagination();
-
-		$("#" + id).html(tplTable);
-
-		$('.table-fixed-header').fixedHeader();
-
-		this.getPageParams();
-		console.log(this.pageParams);
-
+	init : function(params){
+		this.params.id = params.id;
+		this.params.data = params.data;
+		this.render();
 		this.events();
-	},
-
-	init : function(param){
-		this.params.id = param.id;
-		this.params.data = param.data;
-		this.render(param.id, param.data);
 	}
 };
+
+

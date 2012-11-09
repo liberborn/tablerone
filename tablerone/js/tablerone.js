@@ -55,7 +55,7 @@ var tablerone = {
 				}
 			}
 		}
-		
+
 		var newURL = (baseURL + "?" + newAddURL).replace('?&', '?');
 		window.history.pushState({}, "", newURL);
 	},
@@ -168,13 +168,10 @@ var tablerone = {
 		}
 
 		this.params.sortOrder = order;
-		this.setURLParameter('name', p + '=' + order);
+		this.setURLParameter('sort', p + '=' + order);
 	},
 
 	theadOrder : function(e, me) {
-
-		var title = $(e).attr('data-title');
-		me.toggleSortOrder(title);
 
 		$("#" + me.params.id + ' thead span').removeClass("order-asc").removeClass("order-desc");
 		var cls = (me.params.sortOrder == 'asc') ? 'order-asc' : 'order-desc';
@@ -199,6 +196,8 @@ var tablerone = {
 		$("#" + me.params.id + ' thead span').on('click', onClick);
 
 		function onClick(e) {
+			var title = $(e).attr('data-title');
+			me.toggleSortOrder(title);
 			me.theadOrder(this, me);
 		}
 	},

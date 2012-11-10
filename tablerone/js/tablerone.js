@@ -30,8 +30,9 @@ tl.model = function(){
         sortOrder :  '',
         firstPage :  1,
         lastPage :   18,
-        pagePeriod : 4,
-        currPage :   1
+        pagePeriod : 6,
+        currPage :   1,
+        gap :        true
     },
 
     url : {
@@ -120,7 +121,7 @@ tl.router = {
 
     pages : function(){
         if (this.me.model.pages.enabled) { 
-            this.me.view.renderPages( this.me.model.pages ); 
+            this.setPage( this.me.model.pages.currPage, false ); 
         }
     },
 
@@ -145,16 +146,32 @@ tl.router = {
         v.setSortOrder(order, el, m.id);
     },
 
-    setPage : function(p) {
+    setPage : function(p, replace) {
         var m = this.me.model,
-            v = this.me.view
+            v = this.me.view,
+            o = m.pages;
         
         p = parseInt(p);
 
         m.pages.currPage = p;
         m.url.setParam("page", p);
 
-        v.renderPages( m.pages, true, m.id );
+        if (p >= o.firstPage + o.pagePeriod) {
+            o.firstPage = p;
+            if ( (p + o.pagePeriod) > o.lastPage ) {
+                o.gap = false;
+                o.firstPage = o.lastPage - o.pagePeriod;
+            }
+        } 
+        else if (p < o.firstPage) {
+            o.firstPage = p - o.pagePeriod + 1;
+            o.gap = true;
+            if ((p - o.pagePeriod) < 0) {
+                o.firstPage = 1;
+            }
+        }
+
+        v.renderPages( o, replace, m.id );
         this.onPageClick();
     },
 
@@ -178,13 +195,13 @@ tl.router = {
                 currPage = me.me.model.pages.currPage;
 
             if (util.isInt(p)) {
-                me.setPage(p);
+                me.setPage(p, true);
 
             } else if ( p.indexOf('Ctrl') > 0) { // prev
-                me.setPage(currPage - 1);
+                me.setPage(currPage - 1, true);
 
             } else if ( p.indexOf('Ctrl') == 0 ) { // next
-                me.setPage(currPage + 1);
+                me.setPage(currPage + 1, true);
 
             }
             return false;
@@ -296,15 +313,17 @@ tl.view = {
             lastPage   = obj.lastPage,
             pagePeriod = obj.pagePeriod;
 
-        var cls = (firstPage == currPage) ? 'disabled' : '';
+        var cls = (currPage == 1) ? 'disabled' : '';
         pages += '<li class="' + cls + '"><a href="#">&#8592; Ctrl</a></li>';
 
-        for (var i = firstPage, m = pagePeriod; i <= m; i++) {
+        for (var i = firstPage, m = firstPage + pagePeriod - 1; i <= m; i++) {
             cls = (i == currPage) ? 'active' : '';
             pages += '<li class="' + cls + '"><a href="#">' + i + '</a></li>';
         }
 
-        pages += '<li class="disabled"><a href="#">...</a></li>';
+        if (obj.gap) {
+            pages += '<li class="disabled"><a href="#">...</a></li>';
+        }
         
         cls = (lastPage == currPage) ? 'active' : '';
         pages += '<li class="' + cls + '"><a href="#">' + lastPage + '</a></li>';

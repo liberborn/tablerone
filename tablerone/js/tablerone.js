@@ -1,237 +1,360 @@
 /* *************************************************
  *
- *  Tablerone - table interface
- *  
+ *    Tablerone - table interface
+ *    
  *
  * *************************************************
  */
 
 
+var tl = {};
 
-var tablerone = {
+tl.model = function(){ 
+    return {    
 
-  pageParams : {
-    sort : '',
-    page : '1',
-    filter : '',
-    type : ''
-  },
-
-  params : {
-    sortOrder : '',
-    firstPage  : 1,
-    lastPage   : 18,
-    pagePeriod : 4,
-    currPage : 1
-  },
-
-  util : {
-    isInt : function(input){
-         return ((input - 0) == input && input % 1==0);
-    }
-  },
-
-  getURLParameter : function(name){
-    return decodeURIComponent(
-      (location.search.match(RegExp("[?|&]"+name+"=(.+?)(&|$)"))||[,""])[1]
-      );        
-  },
-
-  setURLParameter : function(param, paramVal) {
-    var url = window.location.href,
-      newAddURL = "",
-      tempArr = url.split("?"),
-      baseURL = tempArr[0],
-      addURL = tempArr[1];
-
-    if (addURL) {
-      tempArr = addURL.split('&');
-
-      for (var i=0; i < tempArr.length; i++) {
-        if (tempArr[i].split('=')[0] != param) {
-          newAddURL += '&' + tempArr[i];
-        } else {
-          newAddURL += '&' + param + '=' + paramVal;
-        }
-      }
-    }
-
-    var newURL = (baseURL + "?" + newAddURL).replace('?&', '?');
-    window.history.pushState({}, "", newURL);
-  },
-
-  getPageParams : function() {
-    for (var key in this.pageParams){
-      this.pageParams[key] = this.getURLParameter(key);
-    }
-  },
-
-  setPageParam : function(key, value){
-    this.pageParams[key] = value;
-  },
-
-  render : function() {
-
-    var tplTable =  
-        '<table class="table table-hovered table-fixed-header table-tablerone">' +
-          '<thead class="header">' +
-            '{theadRows}' +
-          '</thead>' +
-          '<tbody>' +
-            '{tbodyRows}' +
-          '</tbody>' +
-        '</table>';
-
-    var theadData = this.renderThead(this.params.data.thead);
-    var tbodyData = this.renderTbody(this.params.data.tdata);
-
-    tplTable = tplTable.replace('{theadRows}', theadData);
-    tplTable = tplTable.replace('{tbodyRows}', tbodyData);
-
-    tplTable += this.renderPagination();
-
-    $("#" + this.params.id).html(tplTable);
-
-    $('.table-fixed-header').fixedHeader();
-
-    this.getPageParams();
-  },  
-
-  renderThead : function(rowsArr){
-    var rows = '<tr>';
-
-    for (var i = 0, m = rowsArr.length; i < m; i++) {
-      rows += '<td><span data-title="' + rowsArr[i].title + '">' + rowsArr[i].label + '</span></td>';
-    }
-    rows += '</tr>';
-
-    return rows;
-  },
-
-  renderTbody : function(rowsArr){
-    var rows = '';
-
-    for (var i = 0, m = rowsArr.length; i < m; i++) {
-      rows += '<tr>';
-      for (var j = 0, n = rowsArr[i].length; j < n; j ++) {
-        rows += '<td>' + rowsArr[i][j] + '</td>';
-      }
-      rows += '</tr>';
-    }
-
-    return rows;
-  },
-
-  renderPagination : function() {
-
-    var tpl = 
-      '<div class="pagination">' +
-        '<ul>' +
-          '{pages}'
-        '</ul>' +
-      '</div>';
-
-    var pages = "",
-      firstPage = this.params.firstPage,
-      currPage = this.params.currPage,
-      lastPage = this.params.lastPage,
-      pagePeriod = this.params.pagePeriod;
-
-    var cls = (firstPage == currPage) ? 'disabled' : '';
-    pages += '<li class="' + cls + '"><a href="#">&#8592; Ctrl</a></li>';
-
-    for (var i = firstPage, m = pagePeriod; i <= m; i++) {
-      cls = (i == currPage) ? 'active' : '';
-      pages += '<li class="' + cls + '"><a href="#">' + i + '</a></li>';
-    }
-
-    pages += '<li class="disabled"><a href="#">...</a></li>';
+    id : "",
+    data : {},
+    thead : "",
+    tdata : "",
     
-    cls = (lastPage == currPage) ? 'active' : '';
-    pages += '<li class="' + cls + '"><a href="#">' + lastPage + '</a></li>';
+    filter : false,
 
-    cls = (lastPage == currPage) ? 'disabled' : '';
-    pages += '<li class="' + cls + '"><a href="#">Ctrl &#8594;</a></li>';
+    sort : {
+        enabled : false,
+        title : '',
+        order : ''
+    },
 
-    tpl = tpl.replace('{pages}', pages);
+    pages : {
+        enabled :    false,
+        sortOrder :  '',
+        firstPage :  1,
+        lastPage :   18,
+        pagePeriod : 4,
+        currPage :   1
+    },
 
-    return tpl;
-  },
+    url : {
+        sort : '',
+        order : '',
+        page : '1',
+        filter : '',
+        type : '',
 
-  toggleSortOrder : function(p) {
-    var order = this.params.sortOrder;
+        get : function() {
+            for (var key in this){
+                this[key] = this.getParam(key);
+            }
+        },
 
-    if (order === 'asc') {
-      order = 'desc';
-    } else {
-      order = 'asc';
+        set : function(key, value){
+            this[key] = value;
+        },
+
+        getParam : function(name){
+            return decodeURIComponent(
+                (location.search.match(RegExp("[?|&]" + name + "=(.+?)(&|$)"))||[,""])[1]);
+        },
+
+        setParam : function(param, paramVal) {
+            var url = window.location.href,
+                newAddURL = "",
+                tempArr = url.split("?"),
+                baseURL = tempArr[0],
+                addURL = tempArr[1];
+
+            if (addURL) {
+                tempArr = addURL.split('&');
+
+                for (var i = 0; i < tempArr.length; i++) {
+                    if (tempArr[i].split('=')[0] != param) {
+                        newAddURL += '&' + tempArr[i];
+                    } else {
+                        newAddURL += '&' + param + '=' + paramVal;
+                    }
+                }
+            } else {
+                newAddURL += param + '=' + paramVal;
+            }
+
+            if (newAddURL.indexOf(param) === -1) {
+                newAddURL += '&' + param + '=' + paramVal;
+            }
+
+            var newURL = (baseURL + "?" + newAddURL).replace('?&', '?');
+            newURL.replace('#', '');
+
+            window.history.pushState({}, "", newURL);
+        }
+    },
+
+    init : function(obj){
+        this.id = obj.id;
+
+        this.filter.enabled = (obj.filter) ? obj.filter.enabled : false;
+        this.sort.enabled = (obj.sort) ? obj.sort.enabled : false;
+        this.pages.enabled = (obj.pages) ? obj.pages.enabled : false;
+
+        this.thead = obj.data.thead;
+        this.tdata = obj.data.tdata;
     }
 
-    this.params.sortOrder = order;
-    this.setURLParameter('sort', p + '=' + order);
-  },
-
-  theadOrder : function(e, me) {
-
-    $("#" + me.params.id + ' thead span').removeClass("order-asc").removeClass("order-desc");
-    var cls = (me.params.sortOrder == 'asc') ? 'order-asc' : 'order-desc';
-    $(e).addClass(cls);
-  },
-
-  pageGo : function(p, me) {
-    p = parseInt(p);
-    me.params.currPage = p;
-    me.setPageParam("page", p);
-
-    var pages = me.renderPagination();
-    $('#' + me.params.id +  ' .pagination').replaceWith(pages);
-    me.onPageClick();
-
-    me.setURLParameter('page', p);
-  },
-
-  onTheadClick : function() {
-    var me = this;
-
-    $("#" + me.params.id + ' thead span').on('click', onClick);
-
-    function onClick(e) {
-      var title = $(e).attr('data-title');
-      me.toggleSortOrder(title);
-      me.theadOrder(this, me);
     }
-  },
+};
 
-  onPageClick : function() {
-    var me = this;
-
-    $('#' + me.params.id +  ' .pagination li:not(.disabled) a').on('click', onClick);
-    $('#' + me.params.id +  ' .pagination li.disabled a').on('click', function(){ return false; });
-
-    function onClick(e) {
-      var p = this.innerHTML;
-      if (me.util.isInt(p)) {
-        me.pageGo(p, me);
-      } else if ( p.indexOf('Ctrl') > 0) { // prev
-        me.pageGo(me.params.currPage - 1, me);
-      } else if ( p.indexOf('Ctrl') == 0 ) { // next
-        me.pageGo(me.params.currPage + 1, me);
-      }
-      return false;
+tl.util = {
+    isInt : function(input){
+        return ((input - 0) == input && input % 1==0);
     }
-  },
+}
 
-  events : function() {
-    this.onTheadClick();
-    this.onPageClick();
-  },
+tl.router = {
 
-  init : function(params){
-    this.params.id = params.id;
-    this.params.data = params.data;
-    this.render();
-    this.events();
-  }
+    me : {},
+
+    filter : function(){
+        if (this.me.model.filter.enabled) { 
+            this.me.view.renderFilter(); 
+        }
+    },
+
+    pages : function(){
+        if (this.me.model.pages.enabled) { 
+            this.me.view.renderPages( this.me.model.pages ); 
+        }
+    },
+
+    setSortOrder : function(title, el) {
+        var m = this.me.model,
+            v  = this.me.view,
+            order = m.sort.order;
+
+        if (order === 'asc') {
+            order = 'desc';
+        } else {
+            order = 'asc';
+        }
+
+        this.me.model.sort.title = title;
+        this.me.model.sort.order = order;
+
+        m.url.set('sort', title);
+        m.url.set('order', order);
+        m.url.setParam('sort', title + '=' + order);
+
+        v.setSortOrder(order, el, m.id);
+    },
+
+    setPage : function(p) {
+        var m = this.me.model,
+            v = this.me.view
+        
+        p = parseInt(p);
+
+        m.pages.currPage = p;
+        m.url.setParam("page", p);
+
+        v.renderPages( m.pages, true, m.id );
+        this.onPageClick();
+    },
+
+    onSortClick : function() {
+        var me = this;
+
+        function onSortClickEvent() {
+            var title = $(this).attr('data-title');
+            me.setSortOrder(title, this);
+        }
+
+        $('.table-tablerone thead span').on('click', onSortClickEvent);
+    },
+
+    onPageClick : function() {
+        var me = this;
+
+        function onPageClickEvent() {
+            var p = this.innerHTML,
+                util = me.me.util,
+                currPage = me.me.model.pages.currPage;
+
+            if (util.isInt(p)) {
+                me.setPage(p);
+
+            } else if ( p.indexOf('Ctrl') > 0) { // prev
+                me.setPage(currPage - 1);
+
+            } else if ( p.indexOf('Ctrl') == 0 ) { // next
+                me.setPage(currPage + 1);
+
+            }
+            return false;
+        }
+
+        $('.pagination li:not(.disabled) a').on('click', onPageClickEvent);
+        $('.pagination li.disabled a').on('click', function(){ return false; });
+    },
+
+    events : function() {
+        if (this.me.model.sort) {
+            this.onSortClick(); 
+        }
+
+        if (this.me.model.pages) {
+            this.onPageClick();
+        }
+    },
+
+    init : function(me) {
+        this.me = me;
+        this.me.view.me = me;
+
+        var view = me.view;
+
+        view.renderThead( this.me.model.thead );
+        view.renderTbody( this.me.model.thead, this.me.model.tdata );
+        view.renderTable();
+
+        this.filter();
+        this.pages();
+
+        view.render( this.me.model.id );
+        this.events();
+    }    
 };
 
 
+tl.view = {
+
+    thead : "",
+    tdata : "",
+    table : "",
+    filter : "",
+    pages : "",
+
+    renderThead : function(thead){
+        var html = '<tr>';
+
+        for (var i = 0, m = thead.length; i < m; i++) {
+            var cls = (thead[i].cls != undefined) ? thead[i].cls : '';
+            html += '<th class="' + cls + '"><span data-title="' + thead[i].title + '">' + thead[i].label + '</span></th>';
+        }
+        html += '</tr>';
+
+        this.thead = html;
+    },
+
+    renderItem : function(item, type){
+
+        if (type === 'link') {
+            item = '<a href="#">' + item + '</a>';
+        } 
+        else if (type === 'btn-circle') {
+            var circle = '';
+            for (var i = 0, m = item.length; i < m; i++) {
+                circle += '<span class="btn-circle btn-circle-color-' + i + '">' + item[i] + "</span>";
+            }
+            item = circle;
+        }
+
+        return item;
+    },
+
+    renderTbody : function(thead, tdata){
+
+        var html = '';
+
+        for (var i = 0, m = tdata.length; i < m; i++) {
+            html += '<tr>';
+
+            for (var j = 0, n = tdata[i].length; j < n; j ++) {
+                var item = tdata[i][j], 
+                    type = thead[j].type;
+                html += '<td>' + this.renderItem(item, type) + '</td>';
+            }
+            html += '</tr>';
+        }
+
+        this.tdata = html;
+    },
+
+    renderFilter : function(obj) {
+
+    },
+
+    renderPages : function(obj, replace, id) {
+        var tpl = '<div class="pagination">' +
+                      '<ul>' +
+                          '{pages}'
+                      '</ul>' +
+                  '</div>';
+
+        var pages = "",
+            firstPage  = obj.firstPage,
+            currPage   = obj.currPage,
+            lastPage   = obj.lastPage,
+            pagePeriod = obj.pagePeriod;
+
+        var cls = (firstPage == currPage) ? 'disabled' : '';
+        pages += '<li class="' + cls + '"><a href="#">&#8592; Ctrl</a></li>';
+
+        for (var i = firstPage, m = pagePeriod; i <= m; i++) {
+            cls = (i == currPage) ? 'active' : '';
+            pages += '<li class="' + cls + '"><a href="#">' + i + '</a></li>';
+        }
+
+        pages += '<li class="disabled"><a href="#">...</a></li>';
+        
+        cls = (lastPage == currPage) ? 'active' : '';
+        pages += '<li class="' + cls + '"><a href="#">' + lastPage + '</a></li>';
+
+        cls = (lastPage == currPage) ? 'disabled' : '';
+        pages += '<li class="' + cls + '"><a href="#">Ctrl &#8594;</a></li>';
+
+        tpl = tpl.replace('{pages}', pages);
+
+        this.pages = tpl;
+
+        if (replace) {
+            $('#' + id + ' .pagination').replaceWith(this.pages);
+        }
+    },
+
+    renderTable : function() {
+        var tpl = '<table class="table table-hovered table-fixed-header table-tablerone">' +
+                    '<thead class="header">' +
+                        '{theadRows}' +
+                    '</thead>' +
+                    '<tbody>' +
+                        '{tbodyRows}' +
+                    '</tbody>' +
+                  '</table>';
+
+        tpl = tpl.replace('{theadRows}', this.thead);
+        tpl = tpl.replace('{tbodyRows}', this.tdata);
+
+        this.table = tpl;
+    },
+
+    render : function(id)
+    {
+        $("#" + id).html(this.filter + this.table + this.pages);
+        $('.table-fixed-header').fixedHeader();
+    },
+
+    setSortOrder : function(order, el, id) {
+        $("#" + id + ' thead span').removeClass("order-asc").removeClass("order-desc");
+        var cls = (order == 'asc') ? 'order-asc' : 'order-desc';
+        $(el).addClass(cls);
+    }
+};
+
+function tablerone(obj) {
+    this.model = new tl.model();
+    this.model.init(obj);
+
+    this.util = tl.util;
+    this.router = tl.router;
+    this.view = tl.view;
+
+    this.router.init(this);
+}

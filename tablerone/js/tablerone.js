@@ -129,7 +129,7 @@ tl.router = {
             v  = this.me.view,
             order = m.sort.order;
 
-        if (order === 'asc') {
+        if (order === 'asc' && m.sort.title === title) {
             order = 'desc';
         } else {
             order = 'asc';
@@ -202,6 +202,8 @@ tl.router = {
         if (this.me.model.pages) {
             this.onPageClick();
         }
+
+        $('td a').on('click', function(){ return false; });
     },
 
     init : function(me) {
@@ -335,16 +337,80 @@ tl.view = {
         this.table = tpl;
     },
 
+    /* 
+     * Based on https://github.com/oma/table-fixed-header
+     *
+     */
+
+    freezeHeader : function(id) {
+
+        var config = { topOffset : 0 },
+            o = $('.table-fixed-header'),
+            $win = $(window), 
+            $head = $('thead.header', o),
+            isFixed = 0;
+
+        var headTop = $head.length && $head.offset().top - config.topOffset;
+
+        function processScroll() {
+            if (!o.is(':visible')) return;
+
+            if ($('thead.header-copy').size()) {
+                var i, scrollTop = $win.scrollTop();
+                var t = $head.length && $head.offset().top - config.topOffset;
+
+                if (!isFixed && headTop != t) { headTop = t; }
+                
+                if (scrollTop >= headTop && !isFixed) {
+                    isFixed = 1;
+                } else if (scrollTop <= headTop && isFixed) {
+                    isFixed = 0;
+                }
+                isFixed ? $('thead.header-copy', o).removeClass('hide')
+                        : $('thead.header-copy', o).addClass('hide');
+            }
+          }
+
+          $win.on('scroll', processScroll);
+
+          $head.on('click', function () {
+            if (!isFixed) setTimeout(function () {  $win.scrollTop($win.scrollTop() - 47) }, 10);
+          })
+
+          $head.clone().removeClass('header').addClass('header-copy header-fixed').appendTo(o);
+
+          var header_width = $head.width();
+
+          o.find('thead.header-copy').width(header_width);
+
+          o.find('thead.header > tr:first > th').each(function (i, h){
+            var w = $(h).width();
+            o.find('thead.header-copy> tr > th:eq('+i+')').width(w)
+          });
+
+          $head.css({ margin:'0 auto',
+                      width: o.width(),
+                     'background-color':config.bgColor });
+
+          processScroll();
+    },
+
     render : function(id)
     {
         $("#" + id).html(this.filter + this.table + this.pages);
-        $('.table-fixed-header').fixedHeader();
+        // $('.table-fixed-header').fixedHeader();
+        this.freezeHeader();
     },
 
     setSortOrder : function(order, el, id) {
-        $("#" + id + ' thead span').removeClass("order-asc").removeClass("order-desc");
-        var cls = (order == 'asc') ? 'order-asc' : 'order-desc';
-        $(el).addClass(cls);
+        var cls = (order == 'asc') ? 'order-asc' : 'order-desc',
+            txt = $(el).html();
+
+        $('#' + id + ' thead span').removeClass("order-asc").removeClass("order-desc");
+        $('#' + id + ' .header-copy').removeClass("order-asc").removeClass("order-desc");
+
+        $( '#' + id + ' thead span:contains(' + txt + ')' ).addClass(cls);
+        $( '#' + id + ' .header-copy span:contains(' + txt + ')' ).addClass(cls);
     }
 };
 

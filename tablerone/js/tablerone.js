@@ -36,6 +36,8 @@ tl.model = function(){
     },
 
     url : {
+        url : '',
+        param : '',
         sort : '',
         order : '',
         page : '1',
@@ -85,19 +87,25 @@ tl.model = function(){
             var newURL = (baseURL + "?" + newAddURL).replace('?&', '?');
             newURL.replace('#', '');
 
+            this.param = newAddURL.replace('?&', '');
+            this.param = this.param.replace(/^&+/, "");
+
             window.history.pushState({}, "", newURL);
         }
     },
 
+    setData : function(data){
+        this.thead = data.thead;
+        this.tdata = data.tdata;
+    },
+
     init : function(obj){
         this.id = obj.id;
-
+        this.url.url = obj.url;
+        
         this.filter.enabled = (obj.filter) ? obj.filter.enabled : false;
         this.sort.enabled = (obj.sort) ? obj.sort.enabled : false;
         this.pages.enabled = (obj.pages) ? obj.pages.enabled : false;
-
-        this.thead = obj.data.thead;
-        this.tdata = obj.data.tdata;
     }
 
     }
@@ -107,7 +115,45 @@ tl.util = {
     isInt : function(input){
         return ((input - 0) == input && input % 1==0);
     }
-}
+};
+
+tl.data = {
+    url : '',
+    param : '',
+
+    setParam : function(obj) {
+        this.url = (obj.url) ? obj.url : '';
+        this.param = (obj.param) ? obj.param : '';
+    },
+
+    get : function(callback, scope){
+        $.ajax({
+            url :      this.url,
+            type :     "post",
+            data :     this.param,
+            dataType : "json",
+            async :    true,
+            beforeSend : function()
+            {
+              
+            },
+            success : function(data) 
+            {
+                callback.call(scope, data);
+            },
+
+            statusCode: 
+            {
+                404: function() {
+                    alert("Page not found (Error 404)");
+                },
+                500: function() {
+                    alert("Server problem (Error 500)");
+                }
+            }
+        });
+    }
+};
 
 tl.router = {
 
@@ -127,6 +173,7 @@ tl.router = {
 
     setSortOrder : function(title, el) {
         var m = this.me.model,
+            d = this.me.data,
             v  = this.me.view,
             order = m.sort.order;
 
@@ -142,6 +189,9 @@ tl.router = {
         m.url.set('sort', title);
         m.url.set('order', order);
         m.url.setParam('sort', title + '=' + order);
+
+        d.setParam(m.url);
+        d.get(this.setData, this);
 
         v.setSortOrder(order, el, m.id);
     },
@@ -223,26 +273,41 @@ tl.router = {
         $('td a').on('click', function(){ return false; });
     },
 
-    init : function(me) {
-        this.me = me;
-        this.me.view.me = me;
+    setData : function(data) {
+        var m = this.me.model,
+            v = this.me.view;
 
-        var view = me.view;
+        m.setData(data);
 
-        view.renderThead( this.me.model.thead );
-        view.renderTbody( this.me.model.thead, this.me.model.tdata );
-        view.renderTable();
+        v.renderThead( m.thead );
+        v.renderTbody( m.thead, m.tdata );
+        v.renderTable();
 
         this.filter();
         this.pages();
 
-        view.render( this.me.model.id );
+        v.render( m.id );
         this.events();
+    },
+
+    init : function(obj, me) {
+        var m = me.model,
+            d = me.data,
+            v = me.view;
+
+        this.me = me;
+
+        m.init(obj);
+
+        d.setParam(m.url);
+        d.get(this.setData, this);
     }    
 };
 
 
 tl.view = {
+
+    me : {},
 
     thead : "",
     tdata : "",
@@ -435,11 +500,11 @@ tl.view = {
 
 function tablerone(obj) {
     this.model = new tl.model();
-    this.model.init(obj);
 
+    this.data = tl.data;
     this.util = tl.util;
     this.router = tl.router;
     this.view = tl.view;
 
-    this.router.init(this);
+    this.router.init(obj, this);
 }
